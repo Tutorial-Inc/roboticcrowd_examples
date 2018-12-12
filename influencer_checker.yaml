@@ -1,0 +1,118 @@
+# Instagramのインフルエンサーの最新投稿をチェックします
+# インフルエンサーのIDと結果の出力先スプレッドシートをセットします
+
+# インフルエンサーを指定
++store_value_2:
+  action>: StoreValue
+  key: influencer
+  value: [ここを変更してください]
+
+# インスタグラムを開く
++open_browser_1:
+  action>: OpenBrowser
+  url: 'https://www.instagram.com/${influencer}/'
+
+# オーバーレイを閉じる
++click_1:
+  action>: Click
+  browser: +open_browser_1
+  selector: 'span#react-root div > section > div > a > span'
+
+# Hoverしないようにポインタを避難
++hover_1:
+  action>: Hover
+  browser: +click_1
+  selector: 'span#react-root '
+
+# 投稿一覧を取得
++scrape_page_1:
+  action>: ScrapePage
+  browser: +open_browser_1
+  selector: '#react-root > section > main > div > div > article > div:nth-child(1) > div > div > div'
+  text_only: false
+
+# 投稿一覧を保存
++store_value_1:
+  action>: StoreValue
+  key: elements
+  value: +scrape_page_1
+
+# 出力先スプレッドシートを指定
++get_spreadsheet_1:
+  action>: GetSpreadsheet
+  spreadsheet_id: 'ここをスプレッドシートIDに'
+  provider: ここをコネクションIDに
+
+# 各投稿について繰り返す
++for_each_1:
+  for_each>:
+    element: ${elements}
+  _do:
+
+    # 投稿のスクリーンショットを撮る
+    +take_element_shot_1:
+      action>: TakeElementShot
+      browser: +open_browser_1
+      selector: ${element.images[0].selector}
+      ignoreError: false
+      highResolution: true
+
+    # 顔と表情検出
+    +face_detection_1:
+      action>: FaceDetection
+      image: +take_element_shot_1
+      simple_mode: true
+
+    # ラベリング検出
+    +label_detection_1:
+      action>: LabelDetection
+      image: +take_element_shot_1
+      simple_mode: true
+
+    # テキスト検出
+    +text_detection_1:
+      action>: TextDetection
+      image: +take_element_shot_1
+      mode: text
+      text_only: true
+
+    # 色検出
+    +image_properties_1:
+      action>: ImageProperties
+      image: +take_element_shot_1
+      simple_mode: true
+
+    # ロゴ検出
+    +logo_detection_1:
+      action>: LogoDetection
+      image: +take_element_shot_1
+      simple_mode: true
+
+    # 不適切コンテンツ検出
+    +safe_search_detection_1:
+      action>: SafeSearchDetection
+      image: +take_element_shot_1
+      simple_mode: true
+
+    # ウェブ参照検出
+    +web_detection_1:
+      action>: WebDetection
+      image: +take_element_shot_1
+      simple_mode: true
+
+    # 登録するデータの配列を作成
+    +create_list:
+      action>: CreateList
+      items: ["${influencer}","${element.links[0].href}","+face_detection_1","+label_detection_1","+text_detection_1","+safe_search_detection_1","+web_detection_1","+image_properties_1","+logo_detection_1"]
+
+    # スプレッドシート末尾にデータを追加
+    +append_values_1:
+      action>: AppendValues
+      spreadsheet: +get_spreadsheet_1
+      range: A1
+      values: +create_list
+
+# ブラウザを閉じる
++close_browser_1:
+  action>: CloseBrowser
+  browser: +open_browser_1
