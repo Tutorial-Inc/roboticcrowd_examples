@@ -1,0 +1,131 @@
+# Wantedlyのスカウト画面からスカウトリストを生成します
+# 出力先：Google Spreadsheet => 中程に設定するところがあります
+# 入力：検索条件を保存したURLが必要になります。スカウト画面から、検索してその直後のURLを設定してください。
+#      この例では、18歳-30歳を対象にしています。検索結果は、100件程度になるように絞り込んでください。
+
+# 検索条件URLを設定（このtextをカスタマイズして検索条件にします）
++text_2:
+  action>: Text
+  text: 'https://www.wantedly.com/enterprise/scouts#search%5Bkeywords%5D=&search%5Bfree_scouts%5D=true&search%5Bconnection%5D=&search%5Bage_range%5D=18-30&search%5Bcountries%5D%5B%5D=japan&search%5Brecommended%5D=false&search%5Bbookmarked_users_params%5D=&search%5Bsaved_search_id%5D=&search%5Bchecked_at%5D=&filter_is_used=true'
+
+# Wantedlyログイン
++open_browser_1:
+  action>: OpenBrowser
+  url: 'https://ja-jp.wantedly.com'
+  lang: 'ja-JP'
+
+# ログインクリック
++click_1:
+  action>: Click
+  browser: +open_browser_1
+  selector: 'div#about_root_japan header > ul > li:nth-child(1) > a'
+
+# インプット - ログインID入力
++type_text_1:
+  action>: TypeText
+  browser: +click_1
+  selector: 'input#login_user_email'
+  text: # ここにログインIDを入力
+  clearValue: false
+
+# インプット - パスワード入力
++type_password_1:
+  action>: TypePassword
+  browser: +type_text_1
+  selector: 'input#login_user_password'
+  password: # ログインパスワードを入力（マスクされます）
+
+# ログインボタンクリック
++click_2:
+  action>: Click
+  browser: +type_password_1
+  selector: 'form#login_new_user input[name="commit"]'
+
+# インプット - 検索条件URL
++go_to_1:
+  action>: GoTo
+  browser: +click_2
+  url: +text_2
+
+# 今日の人数を取得
++get_text_1:
+  action>: GetText
+  browser: +go_to_1
+  selector: 'div#scout_users_list strong'
+
+# 変数に保存
++store_value_1:
+  action>: StoreValue
+  key: usersCount
+  value: +get_text_1
+
+# 既存のスプレッドシートを取得
++get_spreadsheet_1:
+  action>: GetSpreadsheet
+  provider: # コネクションで登録したSpreadsheet APIを選ぶ
+  spreadsheet_id: # 作成済みのスプレッドシートを選択してください
+
+# 人数分繰り返し
++loop_1:
+  loop>: ${parseInt(usersCount) - 1}
+  _do:
+
+    # Dynamic Task Generation Pattern
+    +if_1:
+      if>: true
+      _do:
+
+        # 詳細クリック
+        +click_3:
+          action>: Click
+          browser: +go_to_1
+          selector: 'div#scout_users_list article:nth-child(${i+1}) > div.user-profile-inner-card > div.user-profile-container > section > div.user-profile-header > div.user-profile-header-data > div.user-name-wrapper > a'
+
+        # 詳細データを取得
+        +extract_data_1:
+          action>: ExtractData
+          browser: +click_3
+          extractor: [{"name":"Name","selectors":["div#enterprise-scout-profile-container div.ProfileHeaderDescription--name"]},{"name":"Job","selectors":["div#enterprise-scout-profile-container div.ProfileHeaderDescription--statusLine > div:nth-child(1) > div"]},{"name":"University","selectors":["div#enterprise-scout-profile-container div.ProfileHeaderDescription--statusLine > div:nth-child(2) > div"]},{"name":"Location","selectors":["div#enterprise-scout-profile-container div.ProfileHeaderDescription--statusLine > div:nth-child(3) > div"]},{"name":"Introduction","selectors":["div#enterprise-scout-profile-container div:nth-child(2) > div.ProfileBody--sectionText"]},{"name":"Konosaki","selectors":["div#enterprise-scout-profile-container div:nth-child(3) > div.ProfileBody--sectionText"]}]
+          format: csvWithoutHeader
+          multiple: false
+
+        # 結果を保存
+        +store_value_2:
+          action>: StoreValue
+          key: result
+          value: +extract_data_1
+
+        # ユーザーのURLを取得
+        +get_u_r_l_1:
+          action>: GetURL
+          browser: +click_3
+
+        # プロフィール写真のURL取得
+        +get_attribute_1:
+          action>: GetAttribute
+          browser: +click_3
+          selector: 'div#enterprise-scout-profile-container div.ProfileHeaderMain--base > img'
+          attribute: src
+
+        # テキストを作成
+        +text_1:
+          action>: Text
+          text: ${moment().zone("Asia/Tokyo").format("YYYY-MM-DD")}
+
+        # 投入するデータを整形
+        +create_list_1:
+          action>: CreateList
+          items: ["+text_1","+get_u_r_l_1","=IMAGE(INDIRECT(\"J\"&ROW()))","${result[0][0]}","${result[0][1]}","${result[0][2]}","${result[0][3]}","${result[0][4]}","${result[0][5]}","+get_attribute_1"]
+
+        # 末尾に値を追加
+        +append_values_1:
+          action>: AppendValues
+          spreadsheet: +get_spreadsheet_1
+          range: 'A1'
+          values: +create_list_1
+
+        # 閉じる
+        +click_4:
+          action>: Click
+          browser: +click_3
+          selector: 'div#enterprise-scout-profile-container i.ProfileDialogContainer--closeIcon.wt-icon.wt-icon-close'
