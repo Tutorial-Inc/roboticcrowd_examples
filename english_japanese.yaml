@@ -1,0 +1,72 @@
+# 設定が必要な項目
+# 1. +get_spreadsheet_2 -> provider : スプレッドシート連携のprovider id を設定してください
+# 2. +get_spreadsheet_2 -> spreadsheet_id : A列に翻訳したい英文を入れたスプレッドシートを用意してください（繰り返しは自動です）
+# ブラウザを開く (tutorial inc. を翻訳します)
++open_browser_1:
+  action>: OpenBrowser
+  url: 'https://translate.google.com/?hl=ja&tab=TT&authuser=0#view=home&op=translate&sl=auto&tl=ja&text=this%20is%20the%20tutorial%20inc.'
+
+# 既存のスプレッドシートを取得
++get_spreadsheet_2:
+  action>: GetSpreadsheet
+  provider: 1. ここを変更
+  spreadsheet_id: 2. ここを変更
+
+# セルの値を取得
++get_cells_2:
+  action>: GetCells
+  spreadsheet: +get_spreadsheet_2
+  range: 'シート1!A2:B'
+
+# 表を変数に保存
++store_table_2:
+  action>: StoreValue
+  key: csvData1
+  value: +get_cells_2
+
+# 行番号を変数に保存
++store_row_2:
+  action>: StoreValue
+  key: currentRow1
+  value: 1
+
+# 各行について繰り返す
++for_each_2:
+  for_each>:
+    row1: ${csvData1}
+  _do:
+
+    # 行番号を変数に保存
+    +update_row_2:
+      action>: StoreValue
+      key: currentRow1
+      value: ${parseInt(currentRow1) + 1}
+
+    # 文字入力
+    +type_text_3:
+      action>: TypeText
+      browser: +open_browser_1
+      selector: '#source'
+      text: ${row1[0]}
+      clearValue: true
+      waitAfter: 1000
+      ignoreError: true
+
+    # テキストを取得
+    +get_text_4:
+      action>: GetText
+      browser: +open_browser_1
+      selector: '.result-shield-container'
+      ignoreError: true
+
+    # セルの値を更新
+    +update_cells_6:
+      action>: UpdateCells
+      spreadsheet: +get_spreadsheet_2
+      range: 'シート1!B${currentRow1}:B'
+      values: +get_text_4
+
+# ブラウザを閉じる
++close_browser_1:
+  action>: CloseBrowser
+  browser: +open_browser_1
