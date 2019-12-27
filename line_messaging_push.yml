@@ -1,0 +1,26 @@
+# オブジェクトを作成
++create_object_1:
+  action>: CreateObject
+  object:
+    Content-Type: 'application/json; charset=UTF-8'
+    Authorization: 'Bearer AUTH'
+
+# スクリプトを実行
++run_script_2:
+  action>: RunScript
+  code: "var json = {\n  to: \"【送り先ID】\",\n  messages: [\n    {\n      type: \"text\",\n      text: \"hogehoge\"\n    }\n  ]\n};\nreturn json;\n"
+
+# 変数に保存
++store_value_2:
+  action>: StoreValue
+  key: body
+  value: +run_script_2
+
+# HTTPリクエスト
++h_t_t_p_request_1:
+  action>: HTTPRequest
+  url: 'https://api.line.me/v2/bot/message/push'
+  params: ${JSON.stringify(body)}
+  method: POST
+  headers: +create_object_1
+  multipart: false
